@@ -9,7 +9,7 @@ const store = {
 }
 
 <Provider store={store}>
-  <App>
+  <App/>
 </Provider>
 ```
 
