@@ -1,7 +1,5 @@
 import React, { Component, createContext, forwardRef } from 'react'
 
-const Context = createContext()
-
 const wrapActions = (actions, self) => {
   if (typeof actions === 'function') {
     return (...args) => {
@@ -29,7 +27,7 @@ const wrapActions = (actions, self) => {
   )
 }
 
-const wrapMapToProps = (mapper) => {
+const wrapMapToProps = (mapper, defaultKey) => {
   if (typeof mapper === 'function') {
     return mapper
   }
@@ -45,57 +43,65 @@ const wrapMapToProps = (mapper) => {
     )
   }
 
-  return state => ({ state })
+  return val => ({ [defaultKey]: val })
 }
 
-const Consumer = ({ mapStateToProps, mapActionToState, children}) => (
-  <Context.Consumer>
-    {({ state, actions }) => children({
-      ...wrapMapToProps(mapStateToProps)(state),
-      ...wrapMapToProps(mapActionToState)(actions)
-    })}
-  </Context.Consumer>
-)
+const createStore = (store = {}) => {
+  const Context = createContext()
 
-const consume = (mapStateToProps, mapActionToState) => Wrapped => {
-  const Comp = forwardRef((props, ref) => (
-    <Consumer mapStateToProps={mapStateToProps}
-              mapActionToState={mapActionToState}>
-      {context => <Wrapped {...props} {...context} ref={ref}/>}
-    </Consumer>
-  ))
-  Comp.displayName = `${Wrapped.displayName || Wrapped.name}_CONSUME`
+  const Consumer = ({ mapStateToProps, mapActionToState, children}) => (
+    <Context.Consumer>
+      {({ state, actions }) => children({
+        ...wrapMapToProps(mapStateToProps, 'state')(state),
+        ...wrapMapToProps(mapActionToState, 'actions')(actions)
+      })}
+    </Context.Consumer>
+  )
 
-  return Comp
-}
+  const consume = (mapStateToProps, mapActionToState) => Wrapped => {
+    const Comp = forwardRef((props, ref) => (
+      <Consumer mapStateToProps={mapStateToProps}
+                mapActionToState={mapActionToState}>
+        {context => <Wrapped {...props} {...context} ref={ref}/>}
+      </Consumer>
+    ))
 
-class Provider extends Component {
-  state = this.props.store.initialState
-  actions = wrapActions(this.props.store.actions, this)
+    Comp.displayName = `${Wrapped.displayName || Wrapped.name}_CONSUME`
 
-  render () {
-    return (
-      <Context.Provider value={{ state: this.state, actions: this.actions }}>
-        {this.props.children}
-      </Context.Provider>
-    )
+    return Comp
+  }
+
+  class Provider extends Component {
+    state = store.initialState || {}
+    actions = wrapActions(store.actions || {}, this)
+
+    render () {
+      return (
+        <Context.Provider value={{ state: this.state, actions: this.actions }}>
+          {this.props.children}
+        </Context.Provider>
+      )
+    }
+  }
+
+  const provide = Wrapped => {
+    const Comp = forwardRef((props, ref) => (
+      <Provider>
+        <Wrapped {...props} ref={ref}/>
+      </Provider>
+    ))
+
+    Comp.displayName = `${Wrapped.displayName || Wrapped.name}_PROVIDE`
+
+    return Comp
+  }
+
+  return {
+    Provider,
+    Consumer,
+    provide,
+    consume
   }
 }
 
-const provide = store => Wrapped => {
-  const Comp = forwardRef((props, ref) => (
-    <Provider store={store}>
-      <Wrapped {...props} ref={ref}/>
-    </Provider>
-  ))
-  Comp.displayName = `${Wrapped.displayName || Wrapped.name}_PROVIDE`
-
-  return Comp
-}
-
-export {
-  Provider,
-  Consumer,
-  provide,
-  consume
-}
+export default createStore
