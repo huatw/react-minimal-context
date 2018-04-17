@@ -1,4 +1,4 @@
-import React, { Component, createContext, forwardRef } from 'react'
+import React, { Component, createContext } from 'react'
 
 const wrapActions = (actions, self) => {
   if (typeof actions === 'function') {
@@ -59,12 +59,12 @@ const createStore = (store = {}) => {
   )
 
   const consume = (mapStateToProps, mapActionToState) => Wrapped => {
-    const Comp = forwardRef((props, ref) => (
+    const Comp = (props) => (
       <Consumer mapStateToProps={mapStateToProps}
                 mapActionToState={mapActionToState}>
-        {context => <Wrapped {...props} {...context} ref={ref}/>}
+        {context => <Wrapped {...props} {...context}/>}
       </Consumer>
-    ))
+    )
 
     Comp.displayName = `${Wrapped.displayName || Wrapped.name}_CONSUME`
 
@@ -85,11 +85,11 @@ const createStore = (store = {}) => {
   }
 
   const provide = Wrapped => {
-    const Comp = forwardRef((props, ref) => (
+    const Comp = (props) => (
       <Provider>
-        <Wrapped {...props} ref={ref}/>
+        <Wrapped {...props}/>
       </Provider>
-    ))
+    )
 
     Comp.displayName = `${Wrapped.displayName || Wrapped.name}_PROVIDE`
 
