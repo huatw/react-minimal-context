@@ -1,4 +1,4 @@
-import React, { Component, createContext } from 'react'
+import React, { PureComponent, createContext } from 'react'
 
 const wrapActions = (actions, self) => {
   if (typeof actions === 'function') {
@@ -9,11 +9,17 @@ const wrapActions = (actions, self) => {
         result = result(self.state)
       }
 
-      return new Promise(res =>
-        // incase result is a promise
-        Promise.resolve(result).then(state => {
-          self.setState(state, res)
-        })
+      // incase result is a promise
+      // note: setState is async, no need to distinguish result type.
+      return new Promise((res, rej) =>
+        Promise.resolve(result)
+          .then(state => {
+            if (typeof state !== 'object') {
+              return res()
+            }
+            self.setState(state, res)
+          })
+          .catch(rej)
       )
     }
   }
@@ -27,7 +33,7 @@ const wrapActions = (actions, self) => {
   )
 }
 
-const wrapMapToProps = (mapper, defaultKey) => {
+const wrapMapToProps = (mapper) => {
   if (typeof mapper === 'function') {
     return mapper
   }
@@ -43,7 +49,7 @@ const wrapMapToProps = (mapper, defaultKey) => {
     )
   }
 
-  return val => ({ [defaultKey]: val })
+  return _ => {}
 }
 
 const createStore = (store = {}) => {
@@ -52,8 +58,8 @@ const createStore = (store = {}) => {
   const Consumer = ({ mapStateToProps, mapActionToState, children}) => (
     <Context.Consumer>
       {({ state, actions }) => children({
-        ...wrapMapToProps(mapStateToProps, 'state')(state),
-        ...wrapMapToProps(mapActionToState, 'actions')(actions)
+        ...wrapMapToProps(mapStateToProps)(state),
+        ...wrapMapToProps(mapActionToState)(actions)
       })}
     </Context.Consumer>
   )
@@ -71,13 +77,18 @@ const createStore = (store = {}) => {
     return Comp
   }
 
-  class Provider extends Component {
+  class Provider extends PureComponent {
     state = store.initialState || {}
     actions = wrapActions(store.actions || {}, this)
+    value = { actions: this.actions, state: this.state }
 
     render () {
+      if (this.state !== this.value.state) {
+        this.value = { ...this.value, state: this.state }
+      }
+
       return (
-        <Context.Provider value={{ state: this.state, actions: this.actions }}>
+        <Context.Provider value={this.value}>
           {this.props.children}
         </Context.Provider>
       )
